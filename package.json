@@ -6,7 +6,11 @@
     "dev": "vite dev --port 3000",
     "build": "vite build",
     "start": "srvx serve --prod --static ../client --entry dist/server/server.js",
-    "typecheck": "tsc --noEmit"
+    "deploy": "pnpm build && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.21",
@@ -18,11 +22,18 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.51.0",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
     "@types/node": "22.15.33",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "@vitejs/plugin-react": "6.0.5",
+    "jsdom": "26.1.0",
     "typescript": "5.8.3",
-    "vite": "8.2.1"
+    "vite": "8.2.1",
+    "vitest": "3.2.4",
+    "wrangler": "^4.119.0"
   }
 }
