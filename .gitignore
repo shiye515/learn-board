@@ -6,6 +6,7 @@ node_modules/
 dist/
 .output/
 .vinxi/
+.wrangler/
 
 # Generated route/build artifacts
 src/routeTree.gen.ts
@@ -34,4 +35,3 @@ coverage/
 # Temporary files
 tmp/
 temp/
-
