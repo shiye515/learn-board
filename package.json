@@ -1,0 +1,28 @@
+{
+  "name": "learn-board",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "start": "srvx serve --prod --static ../client --entry dist/server/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "1.170.21",
+    "@tanstack/react-start": "1.168.38",
+    "@tanstack/zod-adapter": "1.167.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "srvx": "^0.12.5",
+    "zod": "4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.33",
+    "@types/react": "19.1.8",
+    "@types/react-dom": "19.1.6",
+    "@vitejs/plugin-react": "6.0.5",
+    "typescript": "5.8.3",
+    "vite": "8.2.1"
+  }
+}
