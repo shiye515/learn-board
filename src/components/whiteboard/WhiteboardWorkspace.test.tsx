@@ -3,12 +3,27 @@ import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vites
 import { WhiteboardWorkspace } from './WhiteboardWorkspace'
 
 const context = {
-  setTransform: vi.fn(), clearRect: vi.fn(), fillRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), arc: vi.fn(), stroke: vi.fn(), strokeRect: vi.fn(), fillText: vi.fn(), save: vi.fn(), restore: vi.fn(), setLineDash: vi.fn(),
+  setTransform: vi.fn(),
+  clearRect: vi.fn(),
+  fillRect: vi.fn(),
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  arc: vi.fn(),
+  stroke: vi.fn(),
+  strokeRect: vi.fn(),
+  fillText: vi.fn(),
+  save: vi.fn(),
+  restore: vi.fn(),
+  setLineDash: vi.fn(),
 } as unknown as CanvasRenderingContext2D
 
 beforeAll(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
-  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => { callback(0); return 1 })
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0)
+    return 1
+  })
   vi.stubGlobal('cancelAnimationFrame', () => undefined)
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context)
   Object.defineProperty(HTMLCanvasElement.prototype, 'setPointerCapture', { configurable: true, value: vi.fn() })

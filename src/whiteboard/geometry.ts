@@ -29,7 +29,7 @@ export function boundsOfElement(element: WhiteboardElement): Bounds {
   if (element.kind === 'note') return { minX: element.x, minY: element.y, maxX: element.x + element.width, maxY: element.y + element.height }
   const padding = element.width / 2
   const points = element.points.length ? element.points : [{ x: 0, y: 0 }]
-  return { minX: Math.min(...points.map((point) => point.x)) - padding, minY: Math.min(...points.map((point) => point.y)) - padding, maxX: Math.max(...points.map((point) => point.x)) + padding, maxY: Math.max(...points.map((point) => point.y)) + padding }
+  return { minX: Math.min(...points.map(point => point.x)) - padding, minY: Math.min(...points.map(point => point.y)) - padding, maxX: Math.max(...points.map(point => point.x)) + padding, maxY: Math.max(...points.map(point => point.y)) + padding }
 }
 
 export function boundsOfDocument(document: WhiteboardDocument): Bounds | null {

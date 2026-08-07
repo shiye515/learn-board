@@ -5,7 +5,7 @@ const DB_NAME = 'canvas-room'
 const DB_STORE = 'boards'
 
 export type SaveStatus = 'loading' | 'saved' | 'saving' | 'memory-only' | 'error'
-export type PersistedBoard = { version: 1; document: WhiteboardDocument; viewport: ViewportTransform; preferences: { color: string; width: number } }
+export type PersistedBoard = { version: 1, document: WhiteboardDocument, viewport: ViewportTransform, preferences: { color: string, width: number } }
 
 const fallbackState: PersistedBoard = { version: 1, document: createEmptyDocument(), viewport: DEFAULT_VIEWPORT, preferences: { color: '#222222', width: 3 } }
 
@@ -44,7 +44,7 @@ async function writeIndexedDb(value: PersistedBoard) {
   })
 }
 
-export async function loadBoard(): Promise<{ board: PersistedBoard; status: SaveStatus; recovered: boolean }> {
+export async function loadBoard(): Promise<{ board: PersistedBoard, status: SaveStatus, recovered: boolean }> {
   let recovered = false
   try {
     const raw = await readIndexedDb()

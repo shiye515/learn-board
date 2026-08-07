@@ -40,7 +40,7 @@ function drawNote(ctx: CanvasRenderingContext2D, element: Extract<WhiteboardElem
   ctx.strokeStyle = '#d5c37c'
   ctx.lineWidth = 1
   ctx.fillRect(topLeft.x, topLeft.y, width, height)
-  ctx.strokeRect(topLeft.x + .5, topLeft.y + .5, width - 1, height - 1)
+  ctx.strokeRect(topLeft.x + 0.5, topLeft.y + 0.5, width - 1, height - 1)
   ctx.fillStyle = '#222'
   ctx.font = `${14 * viewport.scale}px Inter, sans-serif`
   const lines = element.text.split('\n')
@@ -48,7 +48,7 @@ function drawNote(ctx: CanvasRenderingContext2D, element: Extract<WhiteboardElem
 }
 
 function drawSelection(ctx: CanvasRenderingContext2D, document: WhiteboardDocument, selection: SelectionState, viewport: ViewportTransform) {
-  const elements = document.elements.filter((element) => selection.ids.includes(element.id))
+  const elements = document.elements.filter(element => selection.ids.includes(element.id))
   if (elements.length) {
     const bounds = elements.map(boundsOfElement).reduce((total, current) => ({ minX: Math.min(total.minX, current.minX), minY: Math.min(total.minY, current.minY), maxX: Math.max(total.maxX, current.maxX), maxY: Math.max(total.maxY, current.maxY) }))
     const topLeft = worldToScreen({ x: bounds.minX, y: bounds.minY }, viewport)
@@ -71,7 +71,7 @@ function drawSelection(ctx: CanvasRenderingContext2D, document: WhiteboardDocume
   }
 }
 
-export function drawWhiteboard(canvas: HTMLCanvasElement, document: WhiteboardDocument, viewport: ViewportTransform, selection: SelectionState, transientStroke?: { points: Point[]; color: string; width: number }, ratio = 1) {
+export function drawWhiteboard(canvas: HTMLCanvasElement, document: WhiteboardDocument, viewport: ViewportTransform, selection: SelectionState, transientStroke?: { points: Point[], color: string, width: number }, ratio = 1) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const width = canvas.width / ratio
