@@ -9,7 +9,11 @@ export function exportBoardPng(board: WhiteboardDocument) {
   const width = Math.max(1, Math.ceil(bounds.maxX - bounds.minX + padding * 2))
   const height = Math.max(1, Math.ceil(bounds.maxY - bounds.minY + padding * 2))
   const canvas = window.document.createElement('canvas')
-  const viewport: ViewportTransform = { scale: 1, x: padding - bounds.minX, y: padding - bounds.minY }
+  const viewport: ViewportTransform = {
+    scale: 1,
+    x: padding - bounds.minX,
+    y: padding - bounds.minY,
+  }
   const ratio = resizeCanvas(canvas, width, height)
   drawWhiteboard(canvas, board, viewport, { ids: [], marquee: null }, undefined, ratio)
   const link = window.document.createElement('a')

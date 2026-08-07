@@ -19,7 +19,11 @@ describe('whiteboard performance fixture', () => {
 
     const populated = { ...document, elements: strokes }
     expect(populated.elements).toHaveLength(500)
-    expect(populated.elements.every(element => element.kind === 'stroke' && element.points.length === 100)).toBe(true)
+    expect(
+      populated.elements.every(
+        (element) => element.kind === 'stroke' && element.points.length === 100,
+      ),
+    ).toBe(true)
     expect(populated.elements[0]).not.toBe(populated.elements[1])
   })
 })

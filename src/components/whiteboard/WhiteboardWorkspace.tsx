@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   boundsOfElement,
   boundsOfDocument,
@@ -47,15 +42,15 @@ type NoteDraft = {
   text: string
   id?: string
 }
-type Interaction
-  = | { kind: 'draw', pointerId: number, points: Point[] }
-    | {
+type Interaction =
+  | { kind: 'draw'; pointerId: number; points: Point[] }
+  | {
       kind: 'pan'
       pointerId: number
       start: Point
       viewport: ViewportTransform
     }
-    | {
+  | {
       kind: 'select'
       pointerId: number
       mode: 'move' | 'marquee'
@@ -63,7 +58,7 @@ type Interaction
       initialDocument: WhiteboardDocument
       initialSelection: string[]
     }
-    | null
+  | null
 
 function createId() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -84,13 +79,8 @@ function boundsFromPoints(start: Point, end: Point): Bounds {
   }
 }
 
-function selectedBounds(
-  document: WhiteboardDocument,
-  selection: SelectionState,
-): Bounds | null {
-  const elements = document.elements.filter(element =>
-    selection.ids.includes(element.id),
-  )
+function selectedBounds(document: WhiteboardDocument, selection: SelectionState): Bounds | null {
+  const elements = document.elements.filter((element) => selection.ids.includes(element.id))
   if (!elements.length) return null
   return elements.map(boundsOfElement).reduce((total, current) => ({
     minX: Math.min(total.minX, current.minX),
@@ -108,7 +98,7 @@ function elementPath(element: WhiteboardElement): string {
   }
   if (!element.points.length) return ''
   const [first, ...rest] = element.points
-  return [`M ${first.x} ${first.y}`, ...rest.map(point => `L ${point.x} ${point.y}`)].join(' ')
+  return [`M ${first.x} ${first.y}`, ...rest.map((point) => `L ${point.x} ${point.y}`)].join(' ')
 }
 
 function hitTest(
@@ -119,21 +109,17 @@ function hitTest(
   for (const element of [...document.elements].reverse()) {
     if (element.kind === 'note') {
       if (
-        point.x >= element.x - tolerance
-        && point.x <= element.x + element.width + tolerance
-        && point.y >= element.y - tolerance
-        && point.y <= element.y + element.height + tolerance
+        point.x >= element.x - tolerance &&
+        point.x <= element.x + element.width + tolerance &&
+        point.y >= element.y - tolerance &&
+        point.y <= element.y + element.height + tolerance
       )
         return element
     } else {
       for (let index = 1; index < element.points.length; index++) {
         if (
-          pointToSegmentDistance(
-            point,
-            element.points[index - 1],
-            element.points[index],
-          )
-          <= element.width / 2 + tolerance
+          pointToSegmentDistance(point, element.points[index - 1], element.points[index]) <=
+          element.width / 2 + tolerance
         )
           return element
       }
@@ -152,11 +138,10 @@ function moveElements(
     ...document,
     elements: document.elements.map((element) => {
       if (!ids.includes(element.id)) return element
-      if (element.kind === 'note')
-        return { ...element, x: element.x + dx, y: element.y + dy }
+      if (element.kind === 'note') return { ...element, x: element.x + dx, y: element.y + dy }
       return {
         ...element,
-        points: element.points.map(point => ({
+        points: element.points.map((point) => ({
           ...point,
           x: point.x + dx,
           y: point.y + dy,
@@ -167,7 +152,7 @@ function moveElements(
 }
 
 function Icon({ name }: { name: string }) {
-  const common = { 'viewBox': '0 0 24 24', 'aria-hidden': true } as const
+  const common = { viewBox: '0 0 24 24', 'aria-hidden': true } as const
   switch (name) {
     case 'pen':
       return (
@@ -331,8 +316,7 @@ export function WhiteboardWorkspace() {
     center: Point
     viewport: ViewportTransform
   } | null>(null)
-  const [document, setDocument]
-    = useState<WhiteboardDocument>(createEmptyDocument)
+  const [document, setDocument] = useState<WhiteboardDocument>(createEmptyDocument)
   const [history, setHistory] = useState(createHistory())
   const [viewport, setViewport] = useState(DEFAULT_VIEWPORT)
   const [activeTool, setActiveTool] = useState<Tool>('pen')
@@ -375,19 +359,8 @@ export function WhiteboardWorkspace() {
     if (!canvas) return
     let frame = 0
     const render = () => {
-      const ratio = resizeCanvas(
-        canvas,
-        canvas.clientWidth,
-        canvas.clientHeight,
-      )
-      drawWhiteboard(
-        canvas,
-        document,
-        viewport,
-        selection,
-        transientStroke,
-        ratio,
-      )
+      const ratio = resizeCanvas(canvas, canvas.clientWidth, canvas.clientHeight)
+      drawWhiteboard(canvas, document, viewport, selection, transientStroke, ratio)
     }
     const schedule = () => {
       window.cancelAnimationFrame(frame)
@@ -406,9 +379,7 @@ export function WhiteboardWorkspace() {
     if (!hydrated) return
     setSaveStatus('saving')
     const timer = window.setTimeout(() => {
-      saveBoard(createPersistedBoard(document, viewport, color, width)).then(
-        setSaveStatus,
-      )
+      saveBoard(createPersistedBoard(document, viewport, color, width)).then(setSaveStatus)
     }, 300)
     return () => window.clearTimeout(timer)
   }, [document, viewport, color, width, hydrated])
@@ -416,10 +387,8 @@ export function WhiteboardWorkspace() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
-      const editing
-        = target?.tagName === 'INPUT'
-          || target?.tagName === 'TEXTAREA'
-          || target?.isContentEditable
+      const editing =
+        target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
       if (event.code === 'Space' && !editing) {
         spacePressedRef.current = true
         event.preventDefault()
@@ -470,7 +439,7 @@ export function WhiteboardWorkspace() {
 
   function commitDocument(next: WhiteboardDocument, label: string) {
     if (sameDocument(document, next)) return
-    setHistory(current => commit(current, document, next, label))
+    setHistory((current) => commit(current, document, next, label))
     setDocument(next)
   }
 
@@ -497,9 +466,7 @@ export function WhiteboardWorkspace() {
     commitDocument(
       {
         ...document,
-        elements: document.elements.filter(
-          element => !selection.ids.includes(element.id),
-        ),
+        elements: document.elements.filter((element) => !selection.ids.includes(element.id)),
       },
       'Delete selection',
     )
@@ -518,10 +485,7 @@ export function WhiteboardWorkspace() {
       }
       pinchRef.current = {
         center,
-        distance: Math.max(
-          1,
-          Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y),
-        ),
+        distance: Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)),
         viewport,
       }
       interactionRef.current = null
@@ -566,9 +530,7 @@ export function WhiteboardWorkspace() {
         commitDocument(
           {
             ...document,
-            elements: document.elements.filter(
-              element => element.id !== hit.id,
-            ),
+            elements: document.elements.filter((element) => element.id !== hit.id),
           },
           'Erase element',
         )
@@ -608,25 +570,14 @@ export function WhiteboardWorkspace() {
         x: (points[0].x + points[1].x) / 2,
         y: (points[0].y + points[1].y) / 2,
       }
-      const distance = Math.max(
-        1,
-        Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y),
-      )
-      const scale
-        = (pinchRef.current.viewport.scale * distance)
-          / pinchRef.current.distance
+      const distance = Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y))
+      const scale = (pinchRef.current.viewport.scale * distance) / pinchRef.current.distance
       setViewport(
         zoomAt(
           {
             ...pinchRef.current.viewport,
-            x:
-              pinchRef.current.viewport.x
-              + center.x
-              - pinchRef.current.center.x,
-            y:
-              pinchRef.current.viewport.y
-              + center.y
-              - pinchRef.current.center.y,
+            x: pinchRef.current.viewport.x + center.x - pinchRef.current.center.x,
+            y: pinchRef.current.viewport.y + center.y - pinchRef.current.center.y,
           },
           center,
           scale,
@@ -640,9 +591,8 @@ export function WhiteboardWorkspace() {
       const world = screenToWorld(point, viewport)
       const previous = interaction.points.at(-1)
       if (
-        !previous
-        || Math.hypot(world.x - previous.x, world.y - previous.y)
-        >= 1.5 / viewport.scale
+        !previous ||
+        Math.hypot(world.x - previous.x, world.y - previous.y) >= 1.5 / viewport.scale
       ) {
         interaction.points.push(world)
         setTransientStroke({ points: [...interaction.points], color, width })
@@ -662,21 +612,14 @@ export function WhiteboardWorkspace() {
       const bounds = boundsFromPoints(interaction.start, world)
       setSelection({
         ids: document.elements
-          .filter(element => elementIntersectsBounds(element, bounds))
-          .map(element => element.id),
+          .filter((element) => elementIntersectsBounds(element, bounds))
+          .map((element) => element.id),
         marquee: bounds,
       })
     } else {
       const dx = world.x - interaction.start.x
       const dy = world.y - interaction.start.y
-      setDocument(
-        moveElements(
-          interaction.initialDocument,
-          interaction.initialSelection,
-          dx,
-          dy,
-        ),
-      )
+      setDocument(moveElements(interaction.initialDocument, interaction.initialSelection, dx, dy))
     }
   }
 
@@ -697,38 +640,25 @@ export function WhiteboardWorkspace() {
           width,
           createdAt: Date.now(),
         }
-        commitDocument(
-          { ...document, elements: [...document.elements, stroke] },
-          'Draw stroke',
-        )
+        commitDocument({ ...document, elements: [...document.elements, stroke] }, 'Draw stroke')
       }
       return
     }
     if (
-      interaction.kind === 'select'
-      && interaction.mode === 'move'
-      && !sameDocument(interaction.initialDocument, document)
+      interaction.kind === 'select' &&
+      interaction.mode === 'move' &&
+      !sameDocument(interaction.initialDocument, document)
     ) {
-      setHistory(current =>
-        commit(
-          current,
-          interaction.initialDocument,
-          document,
-          'Move selection',
-        ),
+      setHistory((current) =>
+        commit(current, interaction.initialDocument, document, 'Move selection'),
       )
     }
-    if (interaction.kind === 'select')
-      setSelection(current => ({ ...current, marquee: null }))
+    if (interaction.kind === 'select') setSelection((current) => ({ ...current, marquee: null }))
   }
 
   function editNote(event: ReactPointerEvent<HTMLCanvasElement>) {
     const point = screenPoint(event)
-    const hit = hitTest(
-      document,
-      screenToWorld(point, viewport),
-      10 / viewport.scale,
-    )
+    const hit = hitTest(document, screenToWorld(point, viewport), 10 / viewport.scale)
     if (hit?.kind === 'note')
       setNoteDraft({
         id: hit.id,
@@ -745,15 +675,13 @@ export function WhiteboardWorkspace() {
     event.preventDefault()
     const rect = event.currentTarget.getBoundingClientRect()
     const point = { x: event.clientX - rect.left, y: event.clientY - rect.top }
-    setViewport(current =>
-      zoomAt(current, point, current.scale * (event.deltaY > 0 ? 0.9 : 1.1)),
-    )
+    setViewport((current) => zoomAt(current, point, current.scale * (event.deltaY > 0 ? 0.9 : 1.1)))
   }
 
   function zoomBy(factor: number) {
     const canvas = canvasRef.current
     if (!canvas) return
-    setViewport(current =>
+    setViewport((current) =>
       zoomAt(
         current,
         { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 },
@@ -766,11 +694,7 @@ export function WhiteboardWorkspace() {
     const canvas = canvasRef.current
     if (canvas)
       setViewport(
-        fitViewportToBounds(
-          boundsOfDocument(document),
-          canvas.clientWidth,
-          canvas.clientHeight,
-        ),
+        fitViewportToBounds(boundsOfDocument(document), canvas.clientWidth, canvas.clientHeight),
       )
   }
 
@@ -792,7 +716,7 @@ export function WhiteboardWorkspace() {
     const next = noteDraft.id
       ? {
           ...document,
-          elements: document.elements.map(element =>
+          elements: document.elements.map((element) =>
             element.id === noteDraft.id ? note : element,
           ),
         }
@@ -819,7 +743,7 @@ export function WhiteboardWorkspace() {
       active: activeTool === 'pen',
       onClick: () => {
         setActiveTool('pen')
-        setPenOpen(open => !open)
+        setPenOpen((open) => !open)
         setMenuOpen(false)
       },
     },
@@ -891,15 +815,12 @@ export function WhiteboardWorkspace() {
   const statusVisible = saveStatus !== 'saved' || recovered
   const selected = selectedBounds(document, selection)
   const selectedPaths = document.elements
-    .filter(element => selection.ids.includes(element.id))
+    .filter((element) => selection.ids.includes(element.id))
     .map(elementPath)
     .filter(Boolean)
   const selectionOverlay = selected
     ? (() => {
-        const topLeft = worldToScreen(
-          { x: selected.minX, y: selected.minY },
-          viewport,
-        )
+        const topLeft = worldToScreen({ x: selected.minX, y: selected.minY }, viewport)
         return {
           left: topLeft.x + (selected.maxX - selected.minX) * viewport.scale + 8,
           top: topLeft.y,
@@ -909,9 +830,7 @@ export function WhiteboardWorkspace() {
 
   return (
     <main className="whiteboard-app">
-      {!hydrated && (
-        <div className="workspace-skeleton" aria-label="Loading whiteboard" />
-      )}
+      {!hydrated && <div className="workspace-skeleton" aria-label="Loading whiteboard" />}
       {statusVisible && (
         <div
           className={`whiteboard-status ${saveStatus === 'saving' ? 'is-saving' : ''} ${saveStatus === 'error' ? 'is-error' : ''}`}
@@ -947,21 +866,21 @@ export function WhiteboardWorkspace() {
           aria-label="标准化"
           data-tooltip="标准化"
           style={{ left: selectionOverlay.left, top: selectionOverlay.top }}
-          onPointerDown={event => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={() => console.log(selectedPaths)}
         >
           <Icon name="normalize" />
         </button>
       )}
       <div className="tool-dock" aria-label="Whiteboard tools">
-        {toolbar.map(button => (
+        {toolbar.map((button) => (
           <ToolButton key={button.name} {...button} />
         ))}
       </div>
       {penOpen && (
         <div className="pen-panel" aria-label="Pen options">
           <div className="pen-row">
-            {[1, 3, 7].map(size => (
+            {[1, 3, 7].map((size) => (
               <button
                 key={size}
                 type="button"
@@ -976,23 +895,7 @@ export function WhiteboardWorkspace() {
             ))}
           </div>
           <div className="pen-row">
-            {['pen', 'eraser', 'select'].map(name => (
-              <button
-                key={name}
-                type="button"
-                className="pen-option"
-                aria-label={name}
-                onClick={() => {
-                  setActiveTool(name as Tool)
-                  setPenOpen(false)
-                }}
-              >
-                <Icon name={name} />
-              </button>
-            ))}
-          </div>
-          <div className="pen-row">
-            {whiteboardTokens.colors.map(item => (
+            {whiteboardTokens.colors.map((item) => (
               <button
                 key={item}
                 type="button"
@@ -1007,7 +910,6 @@ export function WhiteboardWorkspace() {
               </button>
             ))}
           </div>
-          <div className="pen-pro-note">More tools in Pro · unavailable</div>
         </div>
       )}
       <div className="view-dock" aria-label="View controls">
@@ -1027,12 +929,7 @@ export function WhiteboardWorkspace() {
         >
           <Icon name="home" />
         </button>
-        <button
-          type="button"
-          className="view-button"
-          aria-label="Fit content"
-          onClick={fitContent}
-        >
+        <button type="button" className="view-button" aria-label="Fit content" onClick={fitContent}>
           <Icon name="fit" />
         </button>
         <button
@@ -1061,12 +958,10 @@ export function WhiteboardWorkspace() {
           <textarea
             autoFocus
             value={noteDraft.text}
-            onChange={event =>
-              setNoteDraft({ ...noteDraft, text: event.target.value })}
+            onChange={(event) => setNoteDraft({ ...noteDraft, text: event.target.value })}
             placeholder="Write a note…"
             onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter')
-                saveNote()
+              if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') saveNote()
             }}
           />
           <div className="note-editor-actions">
@@ -1104,12 +999,7 @@ export function WhiteboardWorkspace() {
             </div>
             <div className="menu-list">
               <MenuItem icon="invite" label="Invite" disabled hint="Soon" />
-              <MenuItem
-                icon="view"
-                label="View-only mode"
-                disabled
-                hint="Soon"
-              />
+              <MenuItem icon="view" label="View-only mode" disabled hint="Soon" />
               <MenuItem icon="view" label="Sync view" disabled hint="Soon" />
               <MenuItem
                 icon="download"
@@ -1143,10 +1033,7 @@ export function WhiteboardWorkspace() {
             aria-labelledby="clear-title"
           >
             <h2 id="clear-title">Clear this board?</h2>
-            <p>
-              This removes the current elements. You can undo it immediately
-              after confirming.
-            </p>
+            <p>This removes the current elements. You can undo it immediately after confirming.</p>
             <div className="confirm-actions">
               <button type="button" onClick={() => setClearOpen(false)}>
                 Cancel
@@ -1176,12 +1063,7 @@ function MenuItem({
   onClick?: () => void
 }) {
   return (
-    <button
-      type="button"
-      className="menu-item"
-      disabled={disabled}
-      onClick={onClick}
-    >
+    <button type="button" className="menu-item" disabled={disabled} onClick={onClick}>
       <Icon name={icon} />
       <span>{label}</span>
       {hint && <small>{hint}</small>}

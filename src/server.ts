@@ -5,7 +5,7 @@ import {
   defineHandlerCallback,
 } from '@tanstack/react-start/server'
 
-const handler = defineHandlerCallback(ctx => defaultStreamHandler(ctx))
+const handler = defineHandlerCallback((ctx) => defaultStreamHandler(ctx))
 const fetch = createStartHandler(handler)
 
 export default createServerEntry({ fetch })

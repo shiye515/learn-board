@@ -19,15 +19,27 @@ const context = {
 } as unknown as CanvasRenderingContext2D
 
 beforeAll(() => {
-  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  )
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
     callback(0)
     return 1
   })
   vi.stubGlobal('cancelAnimationFrame', () => undefined)
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context)
-  Object.defineProperty(HTMLCanvasElement.prototype, 'setPointerCapture', { configurable: true, value: vi.fn() })
-  Object.defineProperty(HTMLCanvasElement.prototype, 'releasePointerCapture', { configurable: true, value: vi.fn() })
+  Object.defineProperty(HTMLCanvasElement.prototype, 'setPointerCapture', {
+    configurable: true,
+    value: vi.fn(),
+  })
+  Object.defineProperty(HTMLCanvasElement.prototype, 'releasePointerCapture', {
+    configurable: true,
+    value: vi.fn(),
+  })
 })
 
 afterAll(() => vi.restoreAllMocks())
@@ -38,8 +50,14 @@ beforeEach(() => {
     value: { getItem: vi.fn(() => null), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn() },
   })
   window.localStorage.clear()
-  Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', { configurable: true, value: 800 })
-  Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', { configurable: true, value: 600 })
+  Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', {
+    configurable: true,
+    value: 800,
+  })
+  Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', {
+    configurable: true,
+    value: 600,
+  })
 })
 
 describe('WhiteboardWorkspace', () => {
@@ -56,8 +74,15 @@ describe('WhiteboardWorkspace', () => {
     render(<WhiteboardWorkspace />)
     await waitFor(() => expect(screen.queryByText('Loading local board')).not.toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Add note' }))
-    fireEvent.pointerDown(screen.getByLabelText('Whiteboard canvas'), { pointerId: 2, pointerType: 'mouse', clientX: 120, clientY: 120 })
-    fireEvent.change(screen.getByPlaceholderText('Write a note…'), { target: { value: 'test note' } })
+    fireEvent.pointerDown(screen.getByLabelText('Whiteboard canvas'), {
+      pointerId: 2,
+      pointerType: 'mouse',
+      clientX: 120,
+      clientY: 120,
+    })
+    fireEvent.change(screen.getByPlaceholderText('Write a note…'), {
+      target: { value: 'test note' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))

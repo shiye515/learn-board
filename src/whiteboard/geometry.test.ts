@@ -10,7 +10,9 @@ describe('whiteboard geometry', () => {
   it('keeps the zoom anchor stable', () => {
     const before = { x: 100, y: 50, scale: 1 }
     const after = zoomAt(before, { x: 240, y: 180 }, 2)
-    expect(screenToWorld({ x: 240, y: 180 }, after)).toEqual(screenToWorld({ x: 240, y: 180 }, before))
+    expect(screenToWorld({ x: 240, y: 180 }, after)).toEqual(
+      screenToWorld({ x: 240, y: 180 }, before),
+    )
   })
 
   it('fits content inside a padded viewport', () => {
