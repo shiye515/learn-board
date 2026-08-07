@@ -18,6 +18,11 @@ button { color: inherit; }
 .whiteboard-canvas.tool-pan.is-dragging { cursor: grabbing; }
 .whiteboard-canvas.tool-select { cursor: default; }
 .whiteboard-canvas.tool-note { cursor: text; }
+.selection-normalize-button { position: absolute; z-index: 25; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 1px solid #0033aa; border-radius: 50%; color: #fff; background: #0033aa; box-shadow: 0 2px 5px rgba(0,0,0,.16); cursor: pointer; }
+.selection-normalize-button:hover, .selection-normalize-button:focus-visible { background: #00247a; outline: 2px solid rgba(0,51,170,.22); outline-offset: 2px; }
+.selection-normalize-button svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.selection-normalize-button[data-tooltip]::after { position: absolute; top: 34px; left: 50%; padding: 5px 8px; border-radius: 4px; color: #fff; background: rgba(34,34,34,.9); content: attr(data-tooltip); font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transform: translateX(-50%); }
+.selection-normalize-button[data-tooltip]:hover::after, .selection-normalize-button[data-tooltip]:focus-visible::after { opacity: 1; }
 .whiteboard-status { position: absolute; z-index: 20; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: center; height: 20px; padding: 0 12px; color: #6e5400; background: #ffc400; font-size: 11px; line-height: 1; pointer-events: none; }
 .whiteboard-status span { opacity: .92; }
 .whiteboard-status.is-saving { background: #f4d36d; }

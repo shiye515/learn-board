@@ -5,11 +5,13 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import {
+  boundsOfElement,
   boundsOfDocument,
   elementIntersectsBounds,
   fitViewportToBounds,
   pointToSegmentDistance,
   screenToWorld,
+  worldToScreen,
   zoomAt,
 } from '../../whiteboard/geometry'
 import { commit, createHistory, redo, undo } from '../../whiteboard/history'
@@ -80,6 +82,33 @@ function boundsFromPoints(start: Point, end: Point): Bounds {
     maxX: Math.max(start.x, end.x),
     maxY: Math.max(start.y, end.y),
   }
+}
+
+function selectedBounds(
+  document: WhiteboardDocument,
+  selection: SelectionState,
+): Bounds | null {
+  const elements = document.elements.filter(element =>
+    selection.ids.includes(element.id),
+  )
+  if (!elements.length) return null
+  return elements.map(boundsOfElement).reduce((total, current) => ({
+    minX: Math.min(total.minX, current.minX),
+    minY: Math.min(total.minY, current.minY),
+    maxX: Math.max(total.maxX, current.maxX),
+    maxY: Math.max(total.maxY, current.maxY),
+  }))
+}
+
+function elementPath(element: WhiteboardElement): string {
+  if (element.kind === 'note') {
+    const right = element.x + element.width
+    const bottom = element.y + element.height
+    return `M ${element.x} ${element.y} H ${right} V ${bottom} H ${element.x} Z`
+  }
+  if (!element.points.length) return ''
+  const [first, ...rest] = element.points
+  return [`M ${first.x} ${first.y}`, ...rest.map(point => `L ${point.x} ${point.y}`)].join(' ')
 }
 
 function hitTest(
@@ -219,6 +248,13 @@ function Icon({ name }: { name: string }) {
         <svg {...common}>
           <circle cx="12" cy="12" r="3" />
           <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+        </svg>
+      )
+    case 'normalize':
+      return (
+        <svg {...common}>
+          <path d="M5 5h14v14H5z" />
+          <path d="M9 9h6v6H9zM12 5v4M12 15v4M5 12h4M15 12h4" />
         </svg>
       )
     case 'download':
@@ -853,6 +889,23 @@ export function WhiteboardWorkspace() {
   ]
 
   const statusVisible = saveStatus !== 'saved' || recovered
+  const selected = selectedBounds(document, selection)
+  const selectedPaths = document.elements
+    .filter(element => selection.ids.includes(element.id))
+    .map(elementPath)
+    .filter(Boolean)
+  const selectionOverlay = selected
+    ? (() => {
+        const topLeft = worldToScreen(
+          { x: selected.minX, y: selected.minY },
+          viewport,
+        )
+        return {
+          left: topLeft.x + (selected.maxX - selected.minX) * viewport.scale + 8,
+          top: topLeft.y,
+        }
+      })()
+    : null
 
   return (
     <main className="whiteboard-app">
@@ -887,6 +940,19 @@ export function WhiteboardWorkspace() {
         onWheel={handleWheel}
         aria-label="Whiteboard canvas"
       />
+      {selectionOverlay && (
+        <button
+          type="button"
+          className="selection-normalize-button"
+          aria-label="标准化"
+          data-tooltip="标准化"
+          style={{ left: selectionOverlay.left, top: selectionOverlay.top }}
+          onPointerDown={event => event.stopPropagation()}
+          onClick={() => console.log(selectedPaths)}
+        >
+          <Icon name="normalize" />
+        </button>
+      )}
       <div className="tool-dock" aria-label="Whiteboard tools">
         {toolbar.map(button => (
           <ToolButton key={button.name} {...button} />
