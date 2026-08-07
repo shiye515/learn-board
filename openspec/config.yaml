@@ -1,1 +1,13 @@
 schema: spec-driven
+
+context: |
+  项目类型：一个部署到cloudflare worker中的web 应用
+  目标：一个集成了ai能力的白板应用
+
+rules:
+  proposal:
+    - 使用中文撰写
+  specs:
+    - 使用中文撰写
+  tasks:
+    - 使用中文撰写

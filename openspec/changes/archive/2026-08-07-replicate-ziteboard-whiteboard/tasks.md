@@ -36,7 +36,7 @@
 - [x] 4.5 Implement grouped selection movement and deletion as reversible atomic commands
 - [x] 4.6 Wire undo/redo controls and platform keyboard shortcuts, including correct disabled states and text-editor shortcut isolation
 - [x] 4.7 Implement guarded clear-all confirmation and reversible clear history
-- [ ] 4.8 Add unit and interaction tests for drawing, erasing, notes, selection, movement, undo/redo branching, clear cancellation, and keyboard shortcuts
+- [x] 4.8 Add unit and interaction tests for drawing, erasing, notes, selection, movement, undo/redo branching, clear cancellation, and keyboard shortcuts
 
 ## 5. P1/P2 — Local Persistence and Export
 
@@ -45,18 +45,18 @@
 - [x] 5.3 Add non-blocking saved, saving, storage-unavailable, and corrupt-data recovery status indicators
 - [x] 5.4 Add persistence tests for reload restoration, unknown schema versions, corrupt payloads, and unavailable storage backends
 - [x] 5.5 Implement tight-bounds PNG rendering with a white background and 32px padding, excluding all application chrome and selection overlays
-- [ ] 5.6 Wire PNG download, filename generation, empty-board handling, and tests that assert no whiteboard content is transmitted over the network
+- [x] 5.6 Wire PNG download, filename generation, empty-board handling, and tests that assert no whiteboard content is transmitted over the network
 
 ## 6. P2 — Visual and Production Verification
 
-- [ ] 6.1 Add browser tests for mouse drawing, wheel zoom, toolbar/flyout behavior, undo/redo, clear confirmation, reload restoration, and PNG export
-- [ ] 6.2 Add touch/pointer tests for stylus pressure fallback, pointer cancellation, two-finger pan/zoom, and temporary pan restoration
+- [x] 6.1 Add browser tests for mouse drawing, wheel zoom, toolbar/flyout behavior, undo/redo, clear confirmation, reload restoration, and PNG export
+- [x] 6.2 Add touch/pointer tests for stylus pressure fallback, pointer cancellation, two-finger pan/zoom, and temporary pan restoration
 - [x] 6.3 Capture all desktop implementation states at `1312×872` into `tests/visual/actual/` and tune shell geometry to each reference within the specified 2px layout tolerance
 - [x] 6.4 Verify responsive layouts at representative phone and tablet sizes, including tool reachability and absence of page scrollbars
 - [x] 6.5 Capture the `390×844` mobile implementation state into `tests/visual/actual/` and verify the direct-tool subset, overflow access, view controls, and no-scroll requirement
-- [ ] 6.6 Regenerate the TanStack route tree and run `pnpm typecheck`, unit tests, browser tests, `pnpm build`, and a `pnpm start` Node/srvx smoke test
+- [x] 6.6 Regenerate the TanStack route tree and run `pnpm typecheck`, unit tests, browser tests, `pnpm build`, and a `pnpm start` Node/srvx smoke test
 - [x] 6.7 Run the complete mouse acceptance flow in the production server and verify the browser console contains no errors or unhandled promise rejections
-- [ ] 6.8 Audit server/client bundles to confirm Canvas, storage, and browser globals stay behind the client boundary and remove unused dependencies/assets
+- [x] 6.8 Audit server/client bundles to confirm Canvas, storage, and browser globals stay behind the client boundary and remove unused dependencies/assets
 - [x] 6.9 Search the built UI and source tree to confirm no Learn Board routes, navigation, sample copy, demo server functions, card styles, Ziteboard branding, private assets, or Ziteboard API calls remain
 
 ## 7. Delivery Checkpoints
@@ -65,4 +65,4 @@
 - [x] 7.2 Record a `whiteboard-shell` checkpoint after the SSR/client boundary, visual tokens, toolbar, flyouts, menu, and responsive shell are complete and green
 - [x] 7.3 Record a `canvas-tools` checkpoint after rendering, viewport controls, pen, eraser, selection, notes, history, and shortcuts are complete and green
 - [x] 7.4 Record a `persistence-export` checkpoint after restore, autosave, storage fallbacks, status feedback, and PNG export are complete and green
-- [ ] 7.5 Record a `visual-verification` checkpoint after reference comparison, browser tests, production smoke tests, console audit, and cleanup all pass
+- [x] 7.5 Record a `visual-verification` checkpoint after reference comparison, browser tests, production smoke tests, console audit, and cleanup all pass
