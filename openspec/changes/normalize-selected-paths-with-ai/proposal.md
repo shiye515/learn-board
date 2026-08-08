@@ -7,7 +7,7 @@
 - 将选中路径操作原本的控制台输出替换为异步“标准化图形”流程。
 - 仅将简化后的选区局部笔画几何、宽高比，以及由选中路径单独渲染的 256×256 单色预览图，通过类型化 TanStack Start 服务端函数发送给 Cloudflare Workers AI；不包含完整白板、世界坐标、样式或便签内容。
 - 使用 Cloudflare 原生 Workers AI 绑定、模型原生 `guided_json` 和经过校验的结构化输出 Schema，识别已知标准图形（包括五角星），并允许 AI 对未预先枚举的生活常用符号返回受约束的标准化矢量模板。
-- 将生产推理模型固定为支持视觉输入和 `guided_json` 的 `@cf/mistralai/mistral-small-3.1-24b-instruct`，提示版本固定为 `shape-normalization-v6-rounded-contours`，以非流式方式调用且不自动重试。
+- 将生产推理模型固定为支持视觉输入和 `guided_json` 的 `@cf/mistralai/mistral-small-3.1-24b-instruct`，提示版本固定为 `shape-normalization-v7-characters-math`，以非流式方式调用且不自动重试。
 - 使用两阶段推理：第一阶段仅通过扁平紧凑 Schema 分类，只有分类为 `common-symbol` 时才进行第二次有界矢量模板生成；矢量阶段最多生成 768 个输出 Token。
 - 已知图形由本地确定性代码重建；其他常用符号的 AI 矢量模板必须经过坐标、段类型、路径数量、复杂度和边界校验后，才能缩放到原选区并转换为白板笔画。
 - 使用固定置信度门槛；已知图形由 AI 负责分类，本地代码不再以另一套轮廓分类器否决高置信度结果，只负责确定性重建和安全约束。常用符号仍执行矢量 DSL 与源模板相似度校验。

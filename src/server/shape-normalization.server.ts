@@ -2,6 +2,8 @@ import { env } from 'cloudflare:workers'
 import { z } from 'zod'
 import {
   COMMON_SYMBOL_CONFIDENCE,
+  CHARACTER_SYMBOL_NAME_PATTERN,
+  MATH_SYMBOL_NAME_PATTERN,
   MAX_OUTPUT_TOKENS,
   NORMALIZATION_MODEL,
   NORMALIZATION_PROMPT_VERSION,
@@ -30,8 +32,9 @@ const classificationPrompt = (request: NormalizationRequest) => [
   'A convex four-sided outline with two slanted parallel-looking side pairs is a parallelogram even when perspective or hand jitter makes the angles imperfect.',
   'A rough three-sided path MUST be classified as triangle even if the final endpoint is slightly open. Prefer the closest known-shape label over unsupported whenever the topology is readable.',
   'Set recognizable=true for every readable primitive or everyday symbol. Set it false only for a blank, non-drawing, or genuinely unreadable selection.',
-  'Always provide the closest category. Use common-symbol only for a recognizable everyday symbol that is not a known geometric shape.',
-  'For a known geometric category, symbolName must be an empty string. For common-symbol, use a short lowercase kebab-case symbolName. Do not generate vector paths in this stage.',
+  'When the drawing is a handwritten digit, Latin letter, or mathematical operator, common-symbol takes priority over every geometric label. Do not classify a letter loop, stem, crossbar, diagonal, or open curved stroke as circle, ellipse, rectangle, triangle, or another geometric shape.',
+  'Always provide the closest category. Use common-symbol for one handwritten Arabic digit, one Latin letter, or one mathematical symbol even when its contour contains a loop or resembles a geometric primitive.',
+  'For a known geometric category, symbolName must be an empty string. For common-symbol, use a short lowercase kebab-case symbolName. For a digit, use exactly digit-0 through digit-9. For a Latin letter, use exactly letter-uppercase-a through letter-uppercase-z or letter-lowercase-a through letter-lowercase-z. For mathematics, use exactly math-plus (+), math-minus (− or -), math-multiply (× or *), math-divide (÷), math-equals (=), math-not-equal (≠), math-less-than (<), math-greater-than (>), math-less-than-or-equal (≤), math-greater-than-or-equal (≥), math-plus-minus (±), math-percent (%), math-decimal-point (.), math-parenthesis-left/right, math-bracket-left/right, math-square-root (√), or math-approximately-equal (≈). Do not use the visual character itself as symbolName, and do not generate vector paths in this stage.',
   'Never return SVG, code, URLs, text, metadata, or whiteboard data.',
   JSON.stringify({ aspectRatio: request.aspectRatio, strokes: request.strokes }),
 ]
@@ -39,7 +42,7 @@ const classificationPrompt = (request: NormalizationRequest) => [
 const symbolPrompt = (request: NormalizationRequest, symbolName: string) => [
   `Prompt version: ${NORMALIZATION_PROMPT_VERSION}.`,
   `The first-stage classifier identified the selected drawing as ${symbolName}.`,
-  'Return a small normalized vector DSL for that symbol while preserving orientation and topology.',
+  'Return a small normalized vector DSL for that symbol while preserving orientation and topology. This includes Arabic digits, Latin letters, and the supported math-* operators; use one or more paths when a symbol has multiple strokes, such as equals or plus-minus.',
   'Represent every vector coordinate as an object with numeric x and y fields.',
   'Never return SVG, code, URLs, text, metadata, or whiteboard data.',
   JSON.stringify({ aspectRatio: request.aspectRatio, strokes: request.strokes }),
@@ -54,10 +57,12 @@ function publicFailure(
 
 function recoverClassificationText(value: string) {
   const category = value.match(
-    /\b(?:category|shape|label)\b\s*(?::|=|is)\s*["'`]?([a-z][a-z0-9-]*)/i,
+    /\b(?:category|shape|label|classification|class|type|kind)\b\s*(?::|=|is)\s*["'`]?([a-z][a-z0-9-]*)/i,
   )
   if (!category) return null
-  const symbolName = value.match(/\bsymbolName\b\s*(?::|=|is)\s*["'`]?([a-z][a-z0-9-]*)/i)
+  const symbolName = value.match(
+    /\b(?:symbolName|symbol name|symbol)\b\s*(?::|=|is)\s*["'`]?([a-z][a-z0-9-]*)/i,
+  )
   const confidence = value.match(/\bconfidence\b\s*(?::|=|is)\s*(0(?:\.\d+)?|1(?:\.0+)?)/i)
   const recognizable = !/\b(?:unreadable|not recognizable|unsupported)\b/i.test(value)
   return {
@@ -179,11 +184,15 @@ export async function inferShape(
       classificationPrompt(parsed.data).join('\n'),
       256,
     )
-    const classification = modelShapeClassificationSchema.safeParse(classificationResult)
+    const classificationCandidate =
+      Array.isArray(classificationResult) && classificationResult.length === 1
+        ? classificationResult[0]
+        : classificationResult
+    const classification = modelShapeClassificationSchema.safeParse(classificationCandidate)
     if (!classification.success) {
       const candidate =
         classificationResult && typeof classificationResult === 'object'
-          ? (classificationResult as Record<string, unknown>)
+          ? (classificationCandidate as Record<string, unknown>)
           : {}
       log({
         requestId,
@@ -242,6 +251,15 @@ export async function inferShape(
       })
     } else {
       if (!classification.data.symbolName) return publicFailure('invalid-output', requestId)
+      if (
+        classification.data.symbolName.startsWith('digit-') ||
+        classification.data.symbolName.startsWith('letter-') ||
+        classification.data.symbolName.startsWith('math-')
+      ) {
+        const validCharacter = CHARACTER_SYMBOL_NAME_PATTERN.test(classification.data.symbolName)
+        const validMathSymbol = MATH_SYMBOL_NAME_PATTERN.test(classification.data.symbolName)
+        if (!validCharacter && !validMathSymbol) return publicFailure('invalid-output', requestId)
+      }
       const symbolResult = await runStructured(
         modelCommonSymbolSchema,
         symbolPrompt(parsed.data, classification.data.symbolName).join('\n'),
@@ -269,6 +287,11 @@ export async function inferShape(
       pointCount: parsed.data.strokes.reduce((total, stroke) => total + stroke.points.length, 0),
       latencyMs: Date.now() - started,
       resultKind: output.kind,
+      ...(output.kind === 'common-symbol'
+        ? { symbolName: output.symbolName }
+        : output.kind === 'known-shape'
+          ? { shape: output.shape }
+          : {}),
       confidenceBucket: Math.floor(output.confidence * 10) / 10,
     })
     return output

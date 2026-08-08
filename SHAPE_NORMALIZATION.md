@@ -4,7 +4,7 @@
 
 ## 当前结论
 
-生产模型固定为 `@cf/mistralai/mistral-small-3.1-24b-instruct`，提示版本为 `shape-normalization-v6-rounded-contours`。服务端直接通过 Cloudflare 原生 `env.AI.run` 调用模型，并显式传递 data URL 图片和 `guided_json`。
+生产模型固定为 `@cf/mistralai/mistral-small-3.1-24b-instruct`，提示版本为 `shape-normalization-v7-characters-math`。服务端直接通过 Cloudflare 原生 `env.AI.run` 调用模型，并显式传递 data URL 图片和 `guided_json`。
 
 当前参数：
 
@@ -14,6 +14,9 @@
 - 自动重试：0 次
 - 已知图形置信度门槛：`0.80`
 - 常用符号置信度门槛：`0.85`
+- 圆/椭圆、正方形/矩形统一轴比阈值：`1.15`
+- 正多边形边长比阈值：`1.20`
+- 正多边形内角偏差阈值：`18°`
 - 单次请求最多 8 条笔画、512 个简化点、64 KiB 的 256×256 PNG
 
 模型、提示版本、超时和限制常量集中在 `src/whiteboard/normalization.ts`。不要在组件、服务端函数或测试里复制这些值。
@@ -80,6 +83,20 @@
 - 已知图形由本地策略生成规整路径。常用符号的 AI 矢量 DSL 仍必须执行坐标、段类型、路径数、段数和采样点数校验。
 - 若 AI 无法判断或结果未通过安全校验，显示“暂时无法识别这个图形，已保留原图”，不得修改文档或历史记录。
 
+### 统一几何容差
+
+AI 返回已知图形后，几何层使用同一组比例规则做最终规整，不重新猜测图形类别：
+
+- 椭圆的主轴/次轴比不超过 `1.15` 时输出正圆，否则保留椭圆。
+- 长方形或平行四边形的定向宽高比不超过 `1.15` 时输出正方形；其他情况输出普通矩形或平行四边形。
+- 三角形、五边形和六边形的候选边长比不超过 `1.20` 且内角偏差不超过 `18°` 时输出正多边形。
+- 闭合路径计算主轴时会忽略与首点重复的末点，避免闭合采样权重把正图形误判为椭圆或非正多边形。
+- 已知图形采用统一标准朝向：矩形、正方形、平行四边形、三角形和正多边形尽可能以水平底边输出；椭圆使用水平长短轴；未枚举常用符号保留 AI 推断出的方向。
+
+字符识别：常用符号阶段同时支持单个阿拉伯数字 `0–9`、拉丁大写字母 `A–Z` 和拉丁小写字母 `a–z`。分类标识固定为 `digit-0`–`digit-9`、`letter-uppercase-a`–`letter-uppercase-z` 或 `letter-lowercase-a`–`letter-lowercase-z`，仍通过同一套矢量 DSL、复杂度和轮廓相似度校验。
+
+数学符号识别：支持 `+`、`−`、`×`、`÷`、`=`、`≠`、`<`、`>`、`≤`、`≥`、`±`、`%`、小数点、括号、方括号、平方根和约等于等常用符号。分类标识使用 `math-plus`、`math-minus`、`math-multiply`、`math-divide`、`math-equals` 等稳定的 `math-*` 名称，并继续使用多路径模板表达等号、加减号等多笔画符号。
+
 ## 已验证的失败模式
 
 | 现象                                                      | 根因                                                                         | 处理结论                                                              |
@@ -120,7 +137,7 @@
 
 ```text
 model: @cf/mistralai/mistral-small-3.1-24b-instruct
-promptVersion: shape-normalization-v6-rounded-contours
+promptVersion: shape-normalization-v7-characters-math
 strokeCount: 1
 resultKind: known-shape
 confidenceBucket: 0.9

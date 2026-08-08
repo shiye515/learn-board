@@ -118,6 +118,33 @@ describe('Workers AI shape service', () => {
     expect(result).toEqual({ kind: 'known-shape', shape: 'parallelogram', confidence: 0.9 })
   })
 
+  it('recovers a character classification from a descriptive model response', async () => {
+    mocks.runtimeEnv.AI.run
+      .mockResolvedValueOnce({
+        response:
+          'The classification is common-symbol; symbol name is letter-lowercase-d; confidence is 0.9.',
+      })
+      .mockResolvedValueOnce({
+        response: JSON.stringify({
+          kind: 'common-symbol',
+          symbolName: 'letter-lowercase-d',
+          confidence: 0.9,
+          paths: [
+            {
+              closed: true,
+              segments: [
+                { type: 'move', to: { x: 0.8, y: 0.2 } },
+                { type: 'line', to: { x: 0.8, y: 0.8 } },
+              ],
+            },
+          ],
+        }),
+      })
+    const result = await inferShape(validInput, 'request-character-text', 'actor', vi.fn())
+    expect(result.kind).toBe('common-symbol')
+    expect(mocks.runtimeEnv.AI.run).toHaveBeenCalledTimes(2)
+  })
+
   it('generates a vector template only after classifying a common symbol', async () => {
     mocks.runtimeEnv.AI.run
       .mockResolvedValueOnce({
@@ -147,5 +174,106 @@ describe('Workers AI shape service', () => {
     const result = await inferShape(validInput, 'request-5', 'actor', vi.fn())
     expect(result.kind).toBe('common-symbol')
     expect(mocks.runtimeEnv.AI.run).toHaveBeenCalledTimes(2)
+  })
+
+  it('supports digit and letter character identifiers through the common-symbol flow', async () => {
+    mocks.runtimeEnv.AI.run
+      .mockResolvedValueOnce({
+        response: JSON.stringify({
+          recognizable: true,
+          category: 'common-symbol',
+          symbolName: 'letter-uppercase-a',
+          confidence: 0.95,
+        }),
+      })
+      .mockResolvedValueOnce({
+        response: JSON.stringify({
+          kind: 'common-symbol',
+          symbolName: 'letter-uppercase-a',
+          confidence: 0.95,
+          paths: [
+            {
+              closed: false,
+              segments: [
+                { type: 'move', to: { x: 0.2, y: 0.9 } },
+                { type: 'line', to: { x: 0.5, y: 0.1 } },
+              ],
+            },
+          ],
+        }),
+      })
+    const result = await inferShape(validInput, 'request-letter', 'actor', vi.fn())
+    expect(result.kind).toBe('common-symbol')
+    expect(mocks.runtimeEnv.AI.run).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(mocks.runtimeEnv.AI.run.mock.calls[0][1])).toContain(
+      'digit-0 through digit-9',
+    )
+  })
+
+  it('rejects malformed character identifiers before requesting a vector template', async () => {
+    mocks.runtimeEnv.AI.run.mockResolvedValueOnce({
+      response: JSON.stringify({
+        recognizable: true,
+        category: 'common-symbol',
+        symbolName: 'letter-uppercase-1',
+        confidence: 0.95,
+      }),
+    })
+    const result = await inferShape(validInput, 'request-invalid-character', 'actor', vi.fn())
+    expect(result).toEqual({ kind: 'invalid-output', requestId: 'request-invalid-character' })
+    expect(mocks.runtimeEnv.AI.run).toHaveBeenCalledTimes(1)
+  })
+
+  it('supports mathematical operators through the common-symbol flow', async () => {
+    mocks.runtimeEnv.AI.run
+      .mockResolvedValueOnce({
+        response: JSON.stringify({
+          recognizable: true,
+          category: 'common-symbol',
+          symbolName: 'math-equals',
+          confidence: 0.95,
+        }),
+      })
+      .mockResolvedValueOnce({
+        response: JSON.stringify({
+          kind: 'common-symbol',
+          symbolName: 'math-equals',
+          confidence: 0.95,
+          paths: [
+            {
+              closed: false,
+              segments: [
+                { type: 'move', to: { x: 0.2, y: 0.35 } },
+                { type: 'line', to: { x: 0.8, y: 0.35 } },
+              ],
+            },
+            {
+              closed: false,
+              segments: [
+                { type: 'move', to: { x: 0.2, y: 0.65 } },
+                { type: 'line', to: { x: 0.8, y: 0.65 } },
+              ],
+            },
+          ],
+        }),
+      })
+    const result = await inferShape(validInput, 'request-math', 'actor', vi.fn())
+    expect(result.kind).toBe('common-symbol')
+    expect(mocks.runtimeEnv.AI.run).toHaveBeenCalledTimes(2)
+    expect(JSON.stringify(mocks.runtimeEnv.AI.run.mock.calls[0][1])).toContain('math-plus')
+  })
+
+  it('rejects unsupported math identifiers before requesting a vector template', async () => {
+    mocks.runtimeEnv.AI.run.mockResolvedValueOnce({
+      response: JSON.stringify({
+        recognizable: true,
+        category: 'common-symbol',
+        symbolName: 'math-cube',
+        confidence: 0.95,
+      }),
+    })
+    const result = await inferShape(validInput, 'request-invalid-math', 'actor', vi.fn())
+    expect(result).toEqual({ kind: 'invalid-output', requestId: 'request-invalid-math' })
+    expect(mocks.runtimeEnv.AI.run).toHaveBeenCalledTimes(1)
   })
 })

@@ -68,7 +68,7 @@
 
 ### Requirement: 分类使用固定且有界的推理设置
 
-服务 SHALL 使用生产模型 `@cf/mistralai/mistral-small-3.1-24b-instruct`、`shape-normalization-v6-rounded-contours` 提示、20 秒截止时间和非流式结构化输出；常用符号矢量阶段最多生成 768 个 Token。服务 SHALL 通过原生 Workers AI `guided_json` 和 Zod Schema 约束输出，且 MUST 不自动重试。
+服务 SHALL 使用生产模型 `@cf/mistralai/mistral-small-3.1-24b-instruct`、`shape-normalization-v7-characters-math` 提示、20 秒截止时间和非流式结构化输出；常用符号矢量阶段最多生成 768 个 Token。服务 SHALL 通过原生 Workers AI `guided_json` 和 Zod Schema 约束输出，且 MUST 不自动重试。
 
 #### Scenario: 生产推理使用固定模型
 

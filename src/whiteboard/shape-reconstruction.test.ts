@@ -19,7 +19,7 @@ const source: StrokeElement = {
 const bounds = { minX: 0, minY: 0, maxX: 100, maxY: 80 }
 
 describe('shape reconstruction', () => {
-  it('reconstructs a rotated rectangle in the source orientation', () => {
+  it('places a rotated rectangle horizontally after reconstruction', () => {
     const angle = 0.42
     const cosine = Math.cos(angle)
     const sine = Math.sin(angle)
@@ -50,9 +50,8 @@ describe('shape reconstruction', () => {
     )
     expect(result).not.toBeNull()
     expect(result![0].points.length).toBeGreaterThan(5)
-    const sourceAxis = principalAxis(points)
     const resultAxis = principalAxis(result![0].points)
-    expect(Math.abs(Math.sin(sourceAxis.angle - resultAxis.angle))).toBeLessThan(0.05)
+    expect(Math.abs(Math.sin(resultAxis.angle))).toBeLessThan(0.05)
   })
 
   it('reconstructs a non-isosceles triangle from its fitted corner points', () => {
@@ -76,9 +75,8 @@ describe('shape reconstruction', () => {
     expect(result).not.toBeNull()
     expect(result![0].points.length).toBeGreaterThan(4)
     expect(result![0].points[0]).toEqual(result![0].points.at(-1))
-    expect(result![0].points.some(({ x, y }) => x === 90 && y === 20)).toBe(true)
-    expect(result![0].points.some(({ x, y }) => x === 150 && y === 120)).toBe(true)
-    expect(result![0].points.some(({ x, y }) => x === 20 && y === 150)).toBe(true)
+    const maxY = Math.max(...result![0].points.map(({ y }) => y))
+    expect(result![0].points.filter(({ y }) => Math.abs(y - maxY) < 0.01).length).toBeGreaterThan(1)
   })
 
   it('creates regular known shapes while preserving style', () => {
@@ -225,5 +223,68 @@ describe('shape reconstruction', () => {
       { minX: 0, minY: 0, maxX: 160, maxY: 160 },
     )
     expect(result).not.toBeNull()
+  })
+
+  it('converts a near-circle ellipse into a true circle', () => {
+    const result = reconstructShape(
+      { kind: 'known-shape', shape: 'ellipse', confidence: 0.95 },
+      [
+        {
+          ...source,
+          points: Array.from({ length: 49 }, (_, index) => ({
+            x: 80 + Math.cos((index * Math.PI * 2) / 48) * 80,
+            y: 80 + Math.sin((index * Math.PI * 2) / 48) * 86,
+          })),
+        },
+      ],
+      { minX: 0, minY: 0, maxX: 160, maxY: 172 },
+    )!
+    expect(principalAxis(result[0].points).ratio).toBeLessThan(1.02)
+  })
+
+  it('converts near-square rectangles and diamonds into squares', () => {
+    const square = reconstructShape(
+      { kind: 'known-shape', shape: 'rectangle', confidence: 0.95 },
+      [
+        {
+          ...source,
+          points: [
+            { x: 0, y: 0 },
+            { x: 100, y: 0 },
+            { x: 100, y: 105 },
+            { x: 0, y: 105 },
+            { x: 0, y: 0 },
+          ],
+        },
+      ],
+      { minX: 0, minY: 0, maxX: 100, maxY: 105 },
+    )!
+    const diamond = reconstructShape(
+      { kind: 'known-shape', shape: 'parallelogram', confidence: 0.95 },
+      [
+        {
+          ...source,
+          points: [
+            { x: 50, y: 0 },
+            { x: 105, y: 50 },
+            { x: 50, y: 105 },
+            { x: 0, y: 50 },
+            { x: 50, y: 0 },
+          ],
+        },
+      ],
+      { minX: 0, minY: 0, maxX: 105, maxY: 105 },
+    )!
+    expect(principalAxis(square[0].points).ratio).toBeLessThan(1.02)
+    expect(principalAxis(diamond[0].points).ratio).toBeLessThan(1.02)
+  })
+
+  it('uses a circular radius for near-regular polygons', () => {
+    const result = reconstructShape(
+      { kind: 'known-shape', shape: 'pentagon', confidence: 0.95 },
+      [source],
+      { minX: 0, minY: 0, maxX: 100, maxY: 105 },
+    )!
+    expect(principalAxis(result[0].points).ratio).toBeLessThan(1.02)
   })
 })

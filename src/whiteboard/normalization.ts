@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { Bounds, Point, StrokeElement, WhiteboardDocument } from './model'
 
 export const NORMALIZATION_MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct' as const
-export const NORMALIZATION_PROMPT_VERSION = 'shape-normalization-v6-rounded-contours' as const
+export const NORMALIZATION_PROMPT_VERSION = 'shape-normalization-v7-characters-math' as const
 export const SERVER_TIMEOUT_MS = 20_000
 export const CLIENT_TIMEOUT_MS = 25_000
 export const MAX_OUTPUT_TOKENS = 768
@@ -15,6 +15,12 @@ export const KNOWN_SHAPE_CONFIDENCE = 0.8
 export const COMMON_SYMBOL_CONFIDENCE = 0.85
 export const CLOSURE_DISTANCE = 0.15
 export const AXIS_RATIO_LIMIT = 1.15
+export const REGULAR_SIDE_RATIO_LIMIT = 1.2
+export const REGULAR_ANGLE_TOLERANCE_DEGREES = 18
+export const CHARACTER_SYMBOL_NAME_PATTERN =
+  /^(?:digit-[0-9]|letter-(?:uppercase|lowercase)-[a-z])$/
+export const MATH_SYMBOL_NAME_PATTERN =
+  /^math-(?:plus|minus|multiply|divide|equals|not-equal|less-than|greater-than|less-than-or-equal|greater-than-or-equal|plus-minus|percent|decimal-point|parenthesis-left|parenthesis-right|bracket-left|bracket-right|square-root|approximately-equal)$/
 export const CONTOUR_RMS_LIMIT = 0.12
 export const SYMBOL_CHAMFER_RMS_LIMIT = 0.15
 export const SYMBOL_HAUSDORFF_LIMIT = 0.35

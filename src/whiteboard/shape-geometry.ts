@@ -39,14 +39,22 @@ export function pointsBounds(points: Point[]): Bounds | null {
 }
 
 export function principalAxis(points: Point[]): PrincipalAxis {
-  const center = points.reduce(
-    (sum, point) => ({ x: sum.x + point.x / points.length, y: sum.y + point.y / points.length }),
+  const samples =
+    points.length > 2 &&
+    Math.hypot(points[0].x - points.at(-1)!.x, points[0].y - points.at(-1)!.y) <= 1e-9
+      ? points.slice(0, -1)
+      : points
+  const center = samples.reduce(
+    (sum, point) => ({
+      x: sum.x + point.x / samples.length,
+      y: sum.y + point.y / samples.length,
+    }),
     { x: 0, y: 0 },
   )
   let xx = 0,
     xy = 0,
     yy = 0
-  for (const point of points) {
+  for (const point of samples) {
     const x = point.x - center.x,
       y = point.y - center.y
     xx += x * x

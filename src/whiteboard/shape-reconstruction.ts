@@ -1,5 +1,8 @@
 import type { Bounds, StrokeElement } from './model'
 import {
+  AXIS_RATIO_LIMIT,
+  REGULAR_ANGLE_TOLERANCE_DEGREES,
+  REGULAR_SIDE_RATIO_LIMIT,
   SYMBOL_CHAMFER_RMS_LIMIT,
   SYMBOL_HAUSDORFF_LIMIT,
   type ShapeInference,
@@ -30,6 +33,63 @@ function regularPolygon(
   return Array.from({ length: sides + 1 }, (_, index) =>
     pointOnEllipse(cx, cy, radiusX, radiusY, rotation + (index * Math.PI * 2) / sides),
   )
+}
+
+function distance(a: XY, b: XY) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1])
+}
+
+function isNearEqual(a: number, b: number, limit = AXIS_RATIO_LIMIT) {
+  return Math.max(a, b) / Math.max(Math.min(a, b), 1e-6) <= limit
+}
+
+function angleAt(previous: XY, vertex: XY, next: XY) {
+  const first: XY = [previous[0] - vertex[0], previous[1] - vertex[1]]
+  const second: XY = [next[0] - vertex[0], next[1] - vertex[1]]
+  const denominator = Math.hypot(...first) * Math.hypot(...second)
+  if (!denominator) return 0
+  return Math.acos(
+    Math.max(-1, Math.min(1, (first[0] * second[0] + first[1] * second[1]) / denominator)),
+  )
+}
+
+function isNearRegularPolygon(corners: XY[], sides: number) {
+  if (corners.length !== sides) return false
+  const lengths = corners.map((corner, index) => distance(corner, corners[(index + 1) % sides]))
+  const expectedAngle = ((sides - 2) * Math.PI) / sides
+  const angleTolerance = (REGULAR_ANGLE_TOLERANCE_DEGREES * Math.PI) / 180
+  return (
+    isNearEqual(Math.max(...lengths), Math.min(...lengths), REGULAR_SIDE_RATIO_LIMIT) &&
+    corners.every(
+      (_, index) =>
+        Math.abs(
+          angleAt(
+            corners[(index + sides - 1) % sides],
+            corners[index],
+            corners[(index + 1) % sides],
+          ) - expectedAngle,
+        ) <= angleTolerance,
+    )
+  )
+}
+
+function polygonCorners(points: XY[], sides: number, center: XY, rotation: number): XY[] {
+  const sectors = Array.from({ length: sides }, () => [] as { point: XY; radius: number }[])
+  for (const point of points) {
+    const angle = Math.atan2(point[1] - center[1], point[0] - center[0])
+    const normalized = ((angle - rotation + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2)
+    const sector = Math.floor(normalized * sides) % sides
+    sectors[sector].push({ point, radius: distance(point, center) })
+  }
+  if (sectors.some((sector) => !sector.length)) return []
+  return sectors.map(
+    (sector) =>
+      sector.reduce((best, candidate) => (candidate.radius > best.radius ? candidate : best)).point,
+  )
+}
+
+function regularRadius(width: number, height: number) {
+  return (width + height) / 4
 }
 
 function star(cx: number, cy: number, radiusX: number, radiusY: number) {
@@ -153,6 +213,26 @@ function rotatePath(path: XY[], center: XY, angle: number): XY[] {
   })
 }
 
+function horizontalizePath(path: XY[], center: XY): XY[] {
+  if (path.length < 3) return path
+  const openPath =
+    path[0][0] === path.at(-1)![0] && path[0][1] === path.at(-1)![1] ? path.slice(0, -1) : path
+  if (openPath.length < 3) return path
+  const bottomEdge = openPath.reduce(
+    (best, point, index) => {
+      const next = openPath[(index + 1) % openPath.length]
+      const bestNext = openPath[(best.index + 1) % openPath.length]
+      return (point[1] + next[1]) / 2 > (openPath[best.index][1] + bestNext[1]) / 2
+        ? { index }
+        : best
+    },
+    { index: 0 },
+  )
+  const from = openPath[bottomEdge.index]
+  const to = openPath[(bottomEdge.index + 1) % openPath.length]
+  return rotatePath(path, center, -Math.atan2(to[1] - from[1], to[0] - from[0]))
+}
+
 function orientedBounds(points: XY[], angle: number) {
   const cosine = Math.cos(angle),
     sine = Math.sin(angle)
@@ -260,6 +340,10 @@ export function reconstructShape(
   const sourcePoints = sources.flatMap((stroke) => stroke.points.map(({ x, y }) => [x, y] as XY))
   const sourceAxis = principalAxis(sourcePoints.map(([x, y]) => ({ x, y })))
   const center: XY = [cx, cy]
+  const orientedSourceBounds = orientedBounds(sourcePoints, sourceAxis.angle)
+  const orientedWidth = orientedSourceBounds.maxX - orientedSourceBounds.minX
+  const orientedHeight = orientedSourceBounds.maxY - orientedSourceBounds.minY
+  const nearSquare = isNearEqual(orientedWidth, orientedHeight)
   let paths: XY[][]
   if (inference.kind === 'common-symbol') {
     paths = mapTemplate(inference, bounds)
@@ -276,50 +360,84 @@ export function reconstructShape(
         break
       }
       case 'ellipse':
-        paths = [
-          Array.from({ length: 65 }, (_, index) =>
-            pointOnEllipse(cx, cy, rx, ry, (index * Math.PI * 2) / 64),
-          ),
-        ]
+        if (sourceAxis.ratio <= AXIS_RATIO_LIMIT) {
+          const radius = (rx + ry) / 2
+          paths = [
+            Array.from({ length: 65 }, (_, index) =>
+              pointOnEllipse(cx, cy, radius, radius, (index * Math.PI * 2) / 64),
+            ),
+          ]
+        } else {
+          paths = [
+            Array.from({ length: 65 }, (_, index) =>
+              pointOnEllipse(cx, cy, rx, ry, (index * Math.PI * 2) / 64),
+            ),
+          ]
+        }
         break
       case 'square': {
-        paths = [orientedRectangle(sourcePoints, sourceAxis.angle, true)]
+        paths = [orientedRectangle(sourcePoints, 0, true)]
         break
       }
       case 'rectangle':
-        paths = [orientedRectangle(sourcePoints, sourceAxis.angle, false)]
+        paths = [orientedRectangle(sourcePoints, 0, nearSquare)]
         break
       case 'triangle': {
         const triangle = triangleFromSource(sourcePoints)
-        paths = triangle ? [triangle] : []
+        const triangleCorners = triangle
+          ? [
+              triangle[0],
+              triangle[Math.floor((triangle.length - 1) / 3)],
+              triangle[Math.floor(((triangle.length - 1) * 2) / 3)],
+            ]
+          : []
+        if (triangle && isNearRegularPolygon(triangleCorners, 3)) {
+          const radius = regularRadius(width, height)
+          paths = [regularPolygon(3, cx, cy, radius, radius)]
+        } else {
+          paths = triangle ? [horizontalizePath(triangle, center)] : []
+        }
         break
       }
       case 'parallelogram': {
-        const skew = width * 0.18
-        paths = [
-          [
-            [bounds.minX + skew, bounds.minY],
-            [bounds.maxX, bounds.minY],
-            [bounds.maxX - skew, bounds.maxY],
-            [bounds.minX, bounds.maxY],
-            [bounds.minX + skew, bounds.minY],
-          ],
-        ]
+        if (nearSquare) {
+          paths = [orientedRectangle(sourcePoints, 0, true)]
+        } else {
+          const skew = width * 0.18
+          paths = [
+            [
+              [bounds.minX + skew, bounds.minY],
+              [bounds.maxX, bounds.minY],
+              [bounds.maxX - skew, bounds.maxY],
+              [bounds.minX, bounds.maxY],
+              [bounds.minX + skew, bounds.minY],
+            ],
+          ]
+        }
         break
       }
-      case 'pentagon':
-        paths = [regularPolygon(5, cx, cy, rx, ry)]
+      case 'pentagon': {
+        const corners = polygonCorners(sourcePoints, 5, center, sourceAxis.angle)
+        const radius =
+          corners.length && isNearRegularPolygon(corners, 5)
+            ? regularRadius(width, height)
+            : Math.max(rx, ry)
+        paths = [regularPolygon(5, cx, cy, radius, radius)]
         break
-      case 'hexagon':
-        paths = [regularPolygon(6, cx, cy, rx, ry)]
+      }
+      case 'hexagon': {
+        const corners = polygonCorners(sourcePoints, 6, center, sourceAxis.angle)
+        const radius =
+          corners.length && isNearRegularPolygon(corners, 6)
+            ? regularRadius(width, height)
+            : Math.max(rx, ry)
+        paths = [regularPolygon(6, cx, cy, radius, radius)]
         break
+      }
       case 'five-point-star':
         paths = [star(cx, cy, rx, ry)]
         break
     }
-  }
-  if (inference.kind === 'known-shape' && ['ellipse', 'parallelogram'].includes(inference.shape)) {
-    paths = paths.map((path) => rotatePath(path, center, sourceAxis.angle))
   }
   const createdAt = Date.now()
   return paths
