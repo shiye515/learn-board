@@ -13,7 +13,7 @@
   "ratelimits": [
     {
       "name": "AI_ACTOR_RATE_LIMITER",
-      "namespace_id": "7f3b9e14-1a24-4d0f-9ab2-11c4a9e6c301",
+      "namespace_id": "1001001",
       "simple": {
         "limit": 20,
         "period": 60
@@ -21,7 +21,7 @@
     },
     {
       "name": "AI_COLO_RATE_LIMITER",
-      "namespace_id": "2c8d6f70-5b31-4e88-a5d7-92f0c4b18e62",
+      "namespace_id": "1001002",
       "simple": {
         "limit": 120,
         "period": 60
