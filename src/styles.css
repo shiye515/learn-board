@@ -116,6 +116,27 @@ button {
 .selection-normalize-button[data-tooltip]:focus-visible::after {
   opacity: 1;
 }
+
+.selection-normalize-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.whiteboard-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 20;
+  max-width: min(90vw, 360px);
+  padding: 10px 16px;
+  border: 1px solid #dedede;
+  border-radius: 999px;
+  background: rgba(34, 34, 34, 0.92);
+  color: #fff;
+  font-size: 13px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 .whiteboard-status {
   position: absolute;
   z-index: 20;

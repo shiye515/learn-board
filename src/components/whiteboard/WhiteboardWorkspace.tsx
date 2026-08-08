@@ -33,6 +33,18 @@ import {
 } from '../../whiteboard/storage'
 import { exportBoardPng } from '../../whiteboard/export'
 import { whiteboardTokens } from '../../whiteboard/tokens'
+import { normalizeSelectedShape } from '../../server/shape-normalization'
+import {
+  createPreviewPng,
+  normalizeSelectedStrokes,
+  selectedStrokes,
+  selectionIsEligible,
+  sourceFingerprint,
+  CLIENT_TIMEOUT_MS,
+} from '../../whiteboard/normalization'
+import { reconstructShape } from '../../whiteboard/shape-reconstruction'
+
+const TOAST_DURATION_MS = 4000
 
 type NoteDraft = {
   x: number
@@ -88,17 +100,6 @@ function selectedBounds(document: WhiteboardDocument, selection: SelectionState)
     maxX: Math.max(total.maxX, current.maxX),
     maxY: Math.max(total.maxY, current.maxY),
   }))
-}
-
-function elementPath(element: WhiteboardElement): string {
-  if (element.kind === 'note') {
-    const right = element.x + element.width
-    const bottom = element.y + element.height
-    return `M ${element.x} ${element.y} H ${right} V ${bottom} H ${element.x} Z`
-  }
-  if (!element.points.length) return ''
-  const [first, ...rest] = element.points
-  return [`M ${first.x} ${first.y}`, ...rest.map((point) => `L ${point.x} ${point.y}`)].join(' ')
 }
 
 function hitTest(
@@ -335,7 +336,14 @@ export function WhiteboardWorkspace() {
   const [hydrated, setHydrated] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('loading')
   const [recovered, setRecovered] = useState(false)
+  const [normalizing, setNormalizing] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const spacePressedRef = useRef(false)
+  const documentRef = useRef(document)
+  const selectionRef = useRef(selection)
+  const requestSequenceRef = useRef(0)
+  documentRef.current = document
+  selectionRef.current = selection
 
   useEffect(() => {
     let cancelled = false
@@ -383,6 +391,12 @@ export function WhiteboardWorkspace() {
     }, 300)
     return () => window.clearTimeout(timer)
   }, [document, viewport, color, width, hydrated])
+
+  useEffect(() => {
+    if (!toast || normalizing) return
+    const timer = window.setTimeout(() => setToast(null), TOAST_DURATION_MS)
+    return () => window.clearTimeout(timer)
+  }, [toast, normalizing])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -471,6 +485,104 @@ export function WhiteboardWorkspace() {
       'Delete selection',
     )
     setSelection(EMPTY_SELECTION)
+  }
+
+  async function normalizeSelection() {
+    const ids = selectionRef.current.ids
+    const currentDocument = documentRef.current
+    const strokes = selectedStrokes(currentDocument, ids)
+    if (!selectionIsEligible(currentDocument, ids, viewport.scale)) return
+    const sequence = ++requestSequenceRef.current
+    const fingerprint = await sourceFingerprint(currentDocument, ids)
+    const canvas = window.document.createElement('canvas')
+    setNormalizing(true)
+    setToast('正在识别图形…')
+    let timeout: number | undefined
+    try {
+      const bounds = strokes
+        .flatMap((stroke) => stroke.points)
+        .reduce(
+          (result, point) => ({
+            minX: Math.min(result.minX, point.x),
+            minY: Math.min(result.minY, point.y),
+            maxX: Math.max(result.maxX, point.x),
+            maxY: Math.max(result.maxY, point.y),
+          }),
+          { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
+        )
+      const request = normalizeSelectedShape({
+        data: {
+          strokes: normalizeSelectedStrokes(strokes),
+          aspectRatio:
+            Math.max(bounds.maxX - bounds.minX, 1e-6) / Math.max(bounds.maxY - bounds.minY, 1e-6),
+          preview: createPreviewPng(strokes, canvas),
+        },
+      })
+      const result = await Promise.race([
+        request,
+        new Promise<never>(
+          (_, reject) =>
+            (timeout = window.setTimeout(
+              () => reject(new Error('client-timeout')),
+              CLIENT_TIMEOUT_MS,
+            )),
+        ),
+      ])
+      if (sequence !== requestSequenceRef.current) return
+      const latest = documentRef.current
+      if (
+        (await sourceFingerprint(latest, ids)) !== fingerprint ||
+        ids.some((id) => !latest.elements.some((element) => element.id === id))
+      ) {
+        setToast('选区已变化，已保留原图')
+        return
+      }
+      if (
+        result.kind === 'unsupported' ||
+        result.kind === 'low-confidence' ||
+        'requestId' in result
+      ) {
+        const failureMessage = {
+          'invalid-input': '选区数据无效，已保留原图',
+          'rate-limited': '请求过于频繁，请稍后重试',
+          timeout: '标准化超时，已保留原图',
+          unavailable: 'AI 服务未配置，已保留原图',
+          'provider-error': 'AI 服务调用失败，已保留原图',
+          'invalid-output': 'AI 返回结果无效，已保留原图',
+          unsupported: '暂时无法识别这个图形，已保留原图',
+          'low-confidence': '暂时无法识别这个图形，已保留原图',
+          cancelled: '标准化已取消，已保留原图',
+        }[result.kind]
+        setToast(failureMessage)
+        return
+      }
+      const replacement = reconstructShape(result, strokes, bounds)
+      if (!replacement) {
+        setToast('暂时无法识别这个图形，已保留原图')
+        return
+      }
+      const firstIndex = Math.min(
+        ...ids.map((id) => latest.elements.findIndex((element) => element.id === id)),
+      )
+      const remaining = latest.elements.filter((element) => !ids.includes(element.id))
+      remaining.splice(firstIndex, 0, ...replacement)
+      const next = { ...latest, elements: remaining }
+      setHistory((history) => commit(history, latest, next, '标准化图形'))
+      setDocument(next)
+      setSelection({ ids: replacement.map((element) => element.id), marquee: null })
+      setToast('图形已标准化')
+    } catch (error) {
+      setToast(
+        error instanceof Error && error.message === 'client-timeout'
+          ? '标准化超时，已保留原图'
+          : error instanceof Error && error.message === 'preview-too-large'
+            ? '预览图过大，已保留原图'
+            : '标准化失败，已保留原图',
+      )
+    } finally {
+      if (timeout !== undefined) window.clearTimeout(timeout)
+      setNormalizing(false)
+    }
   }
 
   function startPointer(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -814,10 +926,7 @@ export function WhiteboardWorkspace() {
 
   const statusVisible = saveStatus !== 'saved' || recovered
   const selected = selectedBounds(document, selection)
-  const selectedPaths = document.elements
-    .filter((element) => selection.ids.includes(element.id))
-    .map(elementPath)
-    .filter(Boolean)
+  const canNormalize = selectionIsEligible(document, selection.ids, viewport.scale)
   const selectionOverlay = selected
     ? (() => {
         const topLeft = worldToScreen({ x: selected.minX, y: selected.minY }, viewport)
@@ -864,13 +973,20 @@ export function WhiteboardWorkspace() {
           type="button"
           className="selection-normalize-button"
           aria-label="标准化"
+          aria-busy={normalizing}
+          disabled={normalizing || !canNormalize}
           data-tooltip="标准化"
           style={{ left: selectionOverlay.left, top: selectionOverlay.top }}
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => console.log(selectedPaths)}
+          onClick={() => void normalizeSelection()}
         >
           <Icon name="normalize" />
         </button>
+      )}
+      {toast && (
+        <div className="whiteboard-toast" role="status" aria-live="polite">
+          {toast}
+        </div>
       )}
       <div className="tool-dock" aria-label="Whiteboard tools">
         {toolbar.map((button) => (

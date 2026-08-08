@@ -12,6 +12,7 @@ It provides a focused canvas workspace for freehand drawing, notes, selection, p
 - Pointer, touch, pinch zoom, wheel zoom, and temporary Space-to-pan
 - IndexedDB persistence with localStorage and in-memory fallbacks
 - PNG export with tight content bounds and a white background
+- AI-assisted normalization of selected hand-drawn shapes through Cloudflare Workers AI
 - Full-document SSR with a stable loading shell and streaming-compatible TanStack Start output
 - Cloudflare Workers deployment configuration
 
@@ -53,6 +54,8 @@ Cloudflare dashboard Git integration is configured to deploy pushes to `main`. T
 - `src/components/whiteboard/` — interactive whiteboard workspace
 - `src/whiteboard/` — document model, geometry, rendering, history, persistence, and export
 - `tests/visual/` — visual reference and implementation screenshots
+
+The AI shape-normalization architecture, local test procedure, failure history, and Luna handoff rules are documented in [SHAPE_NORMALIZATION.md](./SHAPE_NORMALIZATION.md).
 
 ## Contributing
 

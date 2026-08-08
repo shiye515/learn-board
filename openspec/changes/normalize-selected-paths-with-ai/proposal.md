@@ -6,10 +6,11 @@
 
 - 将选中路径操作原本的控制台输出替换为异步“标准化图形”流程。
 - 仅将简化后的选区局部笔画几何、宽高比，以及由选中路径单独渲染的 256×256 单色预览图，通过类型化 TanStack Start 服务端函数发送给 Cloudflare Workers AI；不包含完整白板、世界坐标、样式或便签内容。
-- 使用 Cloudflare Workers AI 绑定、AI SDK 和经过校验的结构化输出 Schema，识别已知标准图形（包括五角星），并允许 AI 对未预先枚举的生活常用符号返回受约束的标准化矢量模板。
-- 将生产推理模型固定为 Cloudflare 托管的 `@cf/meta/llama-4-scout-17b-16e-instruct`，同时使用其视觉理解和结构化输出能力，以零温度、非流式方式生成最多 2048 个输出 Token。
+- 使用 Cloudflare 原生 Workers AI 绑定、模型原生 `guided_json` 和经过校验的结构化输出 Schema，识别已知标准图形（包括五角星），并允许 AI 对未预先枚举的生活常用符号返回受约束的标准化矢量模板。
+- 将生产推理模型固定为支持视觉输入和 `guided_json` 的 `@cf/mistralai/mistral-small-3.1-24b-instruct`，提示版本固定为 `shape-normalization-v6-rounded-contours`，以非流式方式调用且不自动重试。
+- 使用两阶段推理：第一阶段仅通过扁平紧凑 Schema 分类，只有分类为 `common-symbol` 时才进行第二次有界矢量模板生成；矢量阶段最多生成 768 个输出 Token。
 - 已知图形由本地确定性代码重建；其他常用符号的 AI 矢量模板必须经过坐标、段类型、路径数量、复杂度和边界校验后，才能缩放到原选区并转换为白板笔画。
-- 使用固定的置信度、闭合度、近圆/近方形、轮廓拟合和源模板相似度阈值作为本地安全门；未通过任一门槛时不替换原图。
+- 使用固定置信度门槛；已知图形由 AI 负责分类，本地代码不再以另一套轮廓分类器否决高置信度结果，只负责确定性重建和安全约束。常用符号仍执行矢量 DSL 与源模板相似度校验。
 - 保持标准化结果的中心、方向、视觉占用范围、笔画颜色和粗细；正圆和正方形使用平均拟合尺寸，其他已知图形按照各自约束保持拟合宽高、顶点结构或倾斜量。
 - 使用类型化图形策略注册表组织分类标签、几何校验和重建器，使后续增加其他标准图形时无需改变请求、历史记录或持久化流程。
 - 将选中的源笔画或样式一致的笔画组替换为一条或多条标准化路径，并作为单条可撤销历史命令提交，保留撤销/重做与自动保存行为。
@@ -23,7 +24,7 @@
 ### New Capabilities（新增能力）
 
 - `ai-shape-normalization`：选区资格判断、标准几何图形与常用符号标准化、视觉属性保持、原子替换、历史记录集成和 Toast 反馈。
-- `workers-ai-shape-service`：类型化服务端边界、Workers AI 绑定与 AI SDK 结构化输出、受约束矢量模板、载荷校验、隐私限制、错误处理和可观测性。
+- `workers-ai-shape-service`：类型化服务端边界、原生 Workers AI 绑定与 `guided_json` 结构化输出、受约束矢量模板、载荷校验、隐私限制、错误处理和可观测性。
 
 ### Modified Capabilities（修改能力）
 
@@ -33,6 +34,6 @@
 
 - 影响 `src/components/whiteboard/` 和 `src/whiteboard/` 中的白板选区操作、文档替换/历史记录流程、几何工具、渲染测试与持久化行为。
 - 新增仅服务端可用的图形标准化模块和类型化 TanStack Start 服务端函数；客户端只接收经过校验的图形描述符或有界矢量模板。
-- 新增 `ai` 和 `workers-ai-provider` 运行时依赖及 Cloudflare Worker 类型生成，同时继续使用 `wrangler.jsonc` 中现有的 `AI` 绑定，并新增 `AI_ACTOR_RATE_LIMITER` 与 `AI_COLO_RATE_LIMITER` 绑定。
-- 增加 `@cf/meta/llama-4-scout-17b-16e-instruct` Workers AI 推理调用及相应延迟和费用；本地端到端 AI 测试需要通过认证的 Cloudflare 远程绑定。
+- 不新增通用 AI SDK Provider 运行时依赖；继续使用 `wrangler.jsonc` 中现有的 `AI` 绑定，并新增 `AI_ACTOR_RATE_LIMITER` 与 `AI_COLO_RATE_LIMITER` 绑定及 Cloudflare Worker 类型生成。
+- 增加 `@cf/mistralai/mistral-small-3.1-24b-instruct` Workers AI 推理调用及相应延迟和费用；服务端截止时间为 20 秒，客户端截止时间为 25 秒，本地端到端 AI 测试需要通过认证的 Cloudflare 远程绑定。
 - 不修改持久化的 `WhiteboardDocument` Schema，因为标准几何图形和常用符号仍使用一条或多条采样后的 `StrokeElement` 路径表示。
